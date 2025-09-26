@@ -153,7 +153,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      console.log(newBlock);  
+      console.log(newBlock);
 
       // Basic validation
       if (new Date(newBlock.startTime) >= new Date(newBlock.endTime)) {
@@ -169,7 +169,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
         return;
       }
 
-      if ( blocks.length > 0 ) {
+      if (blocks.length > 0) {
         const overlappingBlock = blocks.find(block =>
           (new Date(newBlock.startTime) < new Date(block.endTime)) &&
           (new Date(newBlock.endTime) > new Date(block.startTime))
@@ -334,10 +334,10 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       </header>
 
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
+        <div className="px-4 py-6 sm:px-0 ">
           {message && (
-            <div className={`mb-4 p-4 rounded-md ${message.includes('successfully') || message.includes('sent') || message.includes('Updated') ? 'bg-green-50 text-green-800' : message.includes('Refreshing') ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-800'}`}>
-              {message}
+              <div className={`mb-4 p-4  rounded-md ${message.includes('successfully') || message.includes('sent') || message.includes('Updated') ? 'bg-green-50 text-green-800' : message.includes('Refreshing') ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-800'}`}>
+                {message}
             </div>
           )}
 
@@ -353,7 +353,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                 <div className='flex space-x-2'>
 
                   <button
-                    onClick={()=>deleteAllBlocks()}
+                    onClick={() => deleteAllBlocks()}
                     className="bg-indigo-600 hover:bg-indigo-700 hover:cursor-pointer text-white px-4 py-2 rounded-md text-sm font-medium"
                   >
                     Remove All
@@ -368,7 +368,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
               </div>
 
               {showCreateForm && (
-                <form onSubmit={createBlock} className="mb-6 p-4 border rounded-lg bg-gray-50">
+                <form onSubmit={createBlock} aria-disabled={NewBlockLoading} className="mb-6 p-4 border rounded-lg bg-gray-50">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                       <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
@@ -400,10 +400,11 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                   <div className="mt-4">
                     <button
                       type="submit"
+                      disabled={NewBlockLoading ? true : false}
                       className="bg-indigo-600 hover:bg-indigo-700 hover:cursor-pointer text-white px-4 py-2 rounded-md text-sm font-medium"
                     >
                       {
-                        NewBlockLoading ? <Loader color="text-white" /> : 'Create Block'
+                        NewBlockLoading ? <Loader color="text-white" /> : 'Add'
                       }
                     </button>
                   </div>
@@ -453,6 +454,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                         </div>
                         <button
                           onClick={() => deleteBlock(block.blockId)}
+                          disabled={deleteLoading ? true : false}
                           className="ml-4 text-red-600 hover:cursor-pointer hover:text-red-900 text-sm font-medium"
                         >
                           {
