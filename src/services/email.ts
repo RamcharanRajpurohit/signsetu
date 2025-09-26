@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 
+console.log('📧 Initializing Email Service...');
 
 // Environment variables check
 const smtpHost = process.env.MAIL_HOST || 'smtp.gmail.com';
@@ -8,7 +9,12 @@ const smtpUser = process.env.MAIL_USER;
 const smtpPass = process.env.MAIL_PASS;
 const fromEmail = process.env.MAIL_USER; // Use MAIL_USER as FROM_EMAIL
 
-
+console.log('📋 Email environment check:');
+console.log('- MAIL_HOST:', smtpHost ? '✅ Present' : '❌ Missing');
+console.log('- MAIL_PORT:', smtpPort ? '✅ Present' : '❌ Missing');
+console.log('- MAIL_USER:', smtpUser ? '✅ Present' : '❌ Missing');
+console.log('- MAIL_PASS:', smtpPass ? '✅ Present' : '❌ Missing');
+console.log('- FROM_EMAIL:', fromEmail ? `✅ Present (${fromEmail})` : '❌ Missing');
 
 if (!smtpUser || !smtpPass) {
   console.error('❌ Required email environment variables are missing');
@@ -26,12 +32,14 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+console.log('✅ Nodemailer transporter initialized successfully');
 
 // Verify connection configuration
 transporter.verify((error:any) => {
   if (error) {
-    console.error(error);
+    console.error('❌ SMTP connection verification failed:', error);
   } else {
+    console.log('✅ SMTP server is ready to take our messages');
   }
 });
 
@@ -42,7 +50,10 @@ export interface EmailParams {
 }
 
 export async function sendEmail({ to, subject, html }: EmailParams): Promise<boolean> {
-
+  console.log('📤 Attempting to send email:');
+  console.log('- To:', to);
+  console.log('- Subject:', subject);
+  console.log('- From:', fromEmail);
   
   try {
     const mailOptions = {
@@ -52,17 +63,26 @@ export async function sendEmail({ to, subject, html }: EmailParams): Promise<boo
       html,
     };
     
+    console.log('📨 Sending email with Nodemailer...');
     const info = await transporter.sendMail(mailOptions);
 
-  
+    console.log('✅ Email sent successfully!');
+    console.log('- Message ID:', info.messageId);
+    console.log('- Response:', info.response);
     return true;
   } catch (error) {
-     return false;
+    console.error('❌ Email service error (catch block):', error);
+    console.error('- Error type:', typeof error);
+    console.error('- Error message:', error instanceof Error ? error.message : 'Unknown error');
+    return false;
   }
 }
 
 export function generateReminderEmail(startTime: Date, endTime: Date): string {
-   
+  console.log('📝 Generating reminder email HTML...');
+  console.log('- Start time:', startTime.toISOString());
+  console.log('- End time:', endTime.toISOString());
+  
   // Convert to user's local timezone (assuming Indian timezone for now)
   const formatTime = (date: Date) => {
     const formatted = date.toLocaleTimeString('en-IN', {
@@ -71,7 +91,7 @@ export function generateReminderEmail(startTime: Date, endTime: Date): string {
       hour12: true,
       timeZone: 'Asia/Kolkata'
     });
-
+    console.log(`- Formatted time for ${date.toISOString()}: ${formatted}`);
     return formatted;
   };
 
@@ -83,12 +103,12 @@ export function generateReminderEmail(startTime: Date, endTime: Date): string {
       day: 'numeric',
       timeZone: 'Asia/Kolkata'
     });
- 
+    console.log(`- Formatted date for ${date.toISOString()}: ${formatted}`);
     return formatted;
   };
 
   const duration = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60));
- 
+  console.log('- Calculated duration:', duration, 'minutes');
 
   const emailHtml = `
     <!DOCTYPE html>
@@ -129,5 +149,6 @@ export function generateReminderEmail(startTime: Date, endTime: Date): string {
     </html>
   `;
 
+  console.log('✅ Email HTML generated successfully');
   return emailHtml;
 }

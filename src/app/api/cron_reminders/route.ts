@@ -3,16 +3,18 @@ import { getUpcomingBlocks, markReminderSent } from '@/services/blocks';
 import { sendEmail, generateReminderEmail } from '@/services/email';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+console.log('🔄 Cron reminder endpoint loaded');
 
 export async function GET(request: NextRequest) {
   const now = new Date();
-  
+  console.log(`\n⏰ [${now.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}] External cron triggered...`);
+
   try {
     // Get upcoming blocks (next 10 minutes)
     const upcomingBlocks = await getUpcomingBlocks(10);
     
     if (upcomingBlocks.length === 0) {
-      
+      console.log('ℹ️ No upcoming blocks found');
       return Response.json({
         success: true,
         message: 'No upcoming blocks',
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    
+    console.log(`📊 Found ${upcomingBlocks.length} blocks needing reminders`);
 
     let remindersSent = 0;
     let errors: string[] = [];
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Process each block
     for (const block of upcomingBlocks) {
       try {
-        
+        console.log(`📤 Processing block ${block.blockId}...`);
         
         // Get user email from Supabase
         const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(block.userId);
@@ -55,7 +57,7 @@ export async function GET(request: NextRequest) {
           const marked = await markReminderSent(block.blockId);
           if (marked) {
             remindersSent++;
-            
+            console.log(`✅ Reminder sent for block ${block.blockId}`);
           } else {
             const errorMsg = `Failed to mark reminder as sent for block ${block.blockId}`;
             console.error('❌', errorMsg);
@@ -83,6 +85,7 @@ export async function GET(request: NextRequest) {
       successRate: upcomingBlocks.length > 0 ? Math.round((remindersSent / upcomingBlocks.length) * 100) : 0
     };
 
+    console.log('📊 Cron check completed:', summary);
 
     // Return success response for cron service
     return Response.json({
