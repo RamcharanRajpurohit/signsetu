@@ -8,64 +8,49 @@ import { Sun, Shield, Calendar, Clock, Plus, X, RefreshCw, Trash2, CheckCircle, 
 interface DashboardProps {
   onSignOut: () => void;
 }
+
 interface LoaderProps {
   color?: string;
 }
 
-const Loader: React.FC<LoaderProps> = ({ color = "text-white" }) => {
-  return (
-    <RefreshCw className={`animate-spin h-5 w-5 ${color}`} />
-  );
-}
+const Loader: React.FC<LoaderProps> = ({ color = "text-white" }) => (
+  <RefreshCw className={`animate-spin h-5 w-5 ${color}`} />
+);
 
 export function Dashboard({ onSignOut }: DashboardProps) {
   const [blocks, setBlocks] = useState<StudyBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newBlock, setNewBlock] = useState({
-    startTime: '',
-    endTime: '',
-  });
+  const [newBlock, setNewBlock] = useState({ startTime: '', endTime: '' });
   const [message, setMessage] = useState('');
   const [isPolling, setIsPolling] = useState(true);
 
-  // Use ref to store the latest blocks for comparison
   const blocksRef = useRef<StudyBlock[]>([]);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Memoized fetchBlocks function to prevent unnecessary re-renders
   const fetchBlocks = useCallback(async (showLoadingState = false) => {
     try {
-      if (showLoadingState) {
-        setLoading(true);
-      }
+      if (showLoadingState) setLoading(true);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setMessageText('Please sign in to view your blocks');
-        if (showLoadingState) {
-          setLoading(false);
-        }
+        if (showLoadingState) setLoading(false);
         return;
       }
 
       const response = await fetch('/api/blocks', {
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
         const newBlocks = data.blocks;
 
-        // Only update state if blocks have actually changed
         if (JSON.stringify(newBlocks) !== JSON.stringify(blocksRef.current)) {
-          console.log(newBlocks);
           setBlocks(newBlocks);
           blocksRef.current = newBlocks;
 
-          // Show a brief success message if reminder status changed
           const hadPendingReminders = blocksRef.current.some(block => !block.reminderSent);
           const hasPendingReminders = newBlocks.some((block: StudyBlock) => !block.reminderSent);
 
@@ -76,11 +61,8 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       }
     } catch (error) {
       console.error('Error fetching blocks:', error);
-      // Don't show error message during polling to avoid spam
     } finally {
-      if (showLoadingState) {
-        setLoading(false);
-      }
+      if (showLoadingState) setLoading(false);
     }
   }, []);
 
@@ -89,60 +71,37 @@ export function Dashboard({ onSignOut }: DashboardProps) {
     setTimeout(() => setMessage(''), 3000);
   }
 
-  // Start polling
   const startPolling = useCallback(() => {
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    // Poll every 30 seconds to check for reminder status updates
+    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
     pollingIntervalRef.current = setInterval(() => {
-      if (isPolling) {
-        fetchBlocks(false);
-      }
+      if (isPolling) fetchBlocks(false);
     }, 30000);
-
-    console.log('📡 Started polling for block updates every 30 seconds');
   }, [fetchBlocks, isPolling]);
 
-  // Stop polling
   const stopPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
       clearInterval(pollingIntervalRef.current);
       pollingIntervalRef.current = null;
-      console.log('📡 Stopped polling for block updates');
     }
   }, []);
 
-  // Initial load and setup polling
   useEffect(() => {
     fetchBlocks(true);
     startPolling();
-
-    // Cleanup on unmount
-    return () => {
-      stopPolling();
-    };
+    return () => stopPolling();
   }, [fetchBlocks, startPolling, stopPolling]);
 
-  // Handle visibility change to pause/resume polling when tab is not active
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setIsPolling(false);
-        console.log('📡 Paused polling (tab not visible)');
       } else {
         setIsPolling(true);
-        // Immediately fetch when tab becomes visible again
         fetchBlocks(false);
-        console.log('📡 Resumed polling (tab visible)');
       }
     };
-
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [fetchBlocks]);
 
   const [NewBlockLoading, setNewBlockLoading] = useState(false);
@@ -154,17 +113,14 @@ export function Dashboard({ onSignOut }: DashboardProps) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      console.log(newBlock);
 
-      // Basic validation
       if (new Date(newBlock.startTime) >= new Date(newBlock.endTime)) {
         setMessageText('End time must be after start time');
         setNewBlockLoading(false);
         return;
       }
 
-      const now = new Date();
-      if (new Date(newBlock.startTime) < now) {
+      if (new Date(newBlock.startTime) < new Date()) {
         setMessageText('Start time must be in the future');
         setNewBlockLoading(false);
         return;
@@ -182,39 +138,31 @@ export function Dashboard({ onSignOut }: DashboardProps) {
         }
       }
 
-      // Create the new block
       const response = await fetch('/api/blocks', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify(newBlock),
       });
-
       const data = await response.json();
 
       if (response.ok) {
         setMessageText('Study block created successfully!');
         setNewBlock({ startTime: '', endTime: '' });
         setShowCreateForm(false);
-        // Immediately fetch to update the UI
         await fetchBlocks(false);
       } else {
         setMessageText(data.error || 'Failed to create block');
       }
-    } catch (error) {
+    } catch {
       setMessageText('Error creating block');
-    }
-    finally {
+    } finally {
       setNewBlockLoading(false);
     }
   };
 
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const deleteAllBlocks = async () => {
-    const confirmation = confirm('Are you sure you want to delete all study blocks? This action cannot be undone.');
-    if (!confirmation) return;
+    if (!confirm('Are you sure you want to delete all study blocks? This action cannot be undone.')) return;
     try {
       setDeleteLoading('all');
       setMessageText('');
@@ -223,22 +171,18 @@ export function Dashboard({ onSignOut }: DashboardProps) {
 
       const response = await fetch(`/api/blocks`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (response.ok) {
         setMessageText('All blocks deleted successfully!');
-        // Immediately fetch to update the UI
         await fetchBlocks(false);
       } else {
         setMessageText('Failed to delete blocks');
       }
-    } catch (error) {
+    } catch {
       setMessageText('Error deleting blocks');
-    }
-    finally {
+    } finally {
       setDeleteLoading(null);
     }
   }
@@ -252,47 +196,33 @@ export function Dashboard({ onSignOut }: DashboardProps) {
 
       const response = await fetch(`/api/blocks/${blockId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (response.ok) {
         setMessageText('Block deleted successfully!');
-        // Immediately fetch to update the UI
         await fetchBlocks(false);
       } else {
         setMessageText('Failed to delete block');
       }
-    } catch (error) {
+    } catch {
       setMessageText('Error deleting block');
-    }
-    finally {
+    } finally {
       setDeleteLoading(null);
     }
   };
 
-  // Manual refresh function
   const handleManualRefresh = async () => {
     setMessageText('Refreshing...');
     await fetchBlocks(false);
     setMessageText('Updated!');
   };
 
-  const formatDateTime = (date: Date) => {
-    return new Date(date).toLocaleString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDateTime = (date: Date) => new Date(date).toLocaleString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 
-  const getDuration = (start: Date, end: Date) => {
-    const diff = new Date(end).getTime() - new Date(start).getTime();
-    return Math.round(diff / (1000 * 60));
-  };
+  const getDuration = (start: Date, end: Date) => Math.round((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60));
 
   if (loading) {
     return (
@@ -314,7 +244,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       {/* Header */}
       <div className="bg-white/90 backdrop-blur-md border-b-2 border-yellow-200/50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-6 space-y-4 sm:space-y-0">
             <div className="flex items-center">
               <div className="flex items-center mr-6">
                 <div className="p-3 bg-gradient-to-r from-yellow-400 to-rose-400 rounded-2xl shadow-lg mr-3">
@@ -323,10 +253,10 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                 <Sun className="h-8 w-8 text-yellow-500" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent">
                   Quiet Hours Scheduler
                 </h1>
-                <div className="flex items-center space-x-4 text-gray-600 text-lg">
+                <div className="flex items-center space-x-4 text-gray-600 text-base sm:text-lg">
                   <span>Manage your study blocks</span>
                   {isPolling && (
                     <div className="flex items-center text-green-600">
@@ -337,18 +267,18 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 w-full sm:w-auto justify-end">
               <button
                 onClick={handleManualRefresh}
-                className="flex items-center px-4 py-3 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                className="flex items-center px-3 sm:px-4 py-3 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
                 title="Manual refresh"
               >
-                <RefreshCw className="w-5 h-5 mr-2" />
-                Refresh
+                <RefreshCw className="w-5 h-5 sm:mr-2" />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
               <button
                 onClick={onSignOut}
-                className="flex items-center px-4 py-3 bg-white hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 text-gray-700 font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
+                className="flex items-center px-3 sm:px-4 py-3 bg-white hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 text-gray-700 font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
               >
                 Sign Out
               </button>
@@ -389,44 +319,46 @@ export function Dashboard({ onSignOut }: DashboardProps) {
           <div className="absolute inset-0 bg-gradient-to-r from-yellow-200/20 to-rose-200/20 rounded-3xl blur-3xl"></div>
           
           <div className="relative bg-white/90 backdrop-blur-md border-2 border-yellow-200/50 rounded-3xl shadow-xl">
-            <div className="px-8 py-6">
+            <div className="px-4 sm:px-8 py-6">
               {/* Card Header */}
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
                 <div>
                   <div className="flex items-center mb-2">
                     <BookOpen className="h-7 w-7 text-yellow-500 mr-3" />
-                    <h2 className="text-2xl font-bold text-gray-800">Study Blocks</h2>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800">Study Blocks</h2>
                   </div>
-                  <p className="text-gray-600 text-lg">
+                  <p className="text-gray-600 text-base sm:text-lg">
                     Auto-refreshes every 30 seconds to show reminder status
                   </p>
                 </div>
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 w-full sm:w-auto">
                   <button
                     onClick={() => deleteAllBlocks()}
                     disabled={deleteLoading === 'all'}
-                    className="flex items-center px-4 py-3 bg-white hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 text-rose-600 font-medium rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 shadow-sm"
+                    className="flex items-center justify-center px-3 sm:px-4 py-3 bg-white hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 text-rose-600 font-medium rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 shadow-sm flex-1 sm:flex-initial"
                   >
                     {deleteLoading === 'all' ? (
                       <Loader color="text-rose-600" />
                     ) : (
-                      <Trash2 className="w-5 h-5 mr-2" />
+                      <>
+                        <Trash2 className="w-5 h-5 sm:mr-2" />
+                        <span className="hidden sm:inline">Remove All</span>
+                      </>
                     )}
-                    Remove All
                   </button>
                   <button
                     onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="flex items-center px-4 py-3 bg-gradient-to-r from-yellow-400 to-rose-400 hover:from-yellow-500 hover:to-rose-500 text-white font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                    className="flex items-center justify-center px-3 sm:px-4 py-3 bg-gradient-to-r from-yellow-400 to-rose-400 hover:from-yellow-500 hover:to-rose-500 text-white font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-lg flex-1 sm:flex-initial"
                   >
                     {showCreateForm ? (
                       <>
-                        <X className="w-5 h-5 mr-2" />
-                        Cancel
+                        <X className="w-5 h-5 sm:mr-2" />
+                        <span className="hidden sm:inline">Cancel</span>
                       </>
                     ) : (
                       <>
-                        <Plus className="w-5 h-5 mr-2" />
-                        Add Block
+                        <Plus className="w-5 h-5 sm:mr-2" />
+                        <span className="hidden sm:inline">Add Block</span>
                       </>
                     )}
                   </button>
@@ -508,22 +440,22 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                   blocks.map((block) => (
                     <div
                       key={block.blockId}
-                      className="bg-gradient-to-r from-yellow-50/50 to-rose-50/50 border-2 border-yellow-200/30 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+                      className="bg-gradient-to-r from-yellow-50/50 to-rose-50/50 border-2 border-yellow-200/30 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
                     >
-                      <div className="flex justify-between items-start">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-3 sm:space-y-0">
                         <div className="flex-1">
                           <div className="flex items-start space-x-4">
                             <div className="p-2 bg-gradient-to-r from-yellow-400 to-rose-400 rounded-lg">
                               <Clock className="h-6 w-6 text-white" />
                             </div>
                             <div className="flex-1">
-                              <p className="text-lg font-semibold text-gray-900 mb-1">
+                              <p className="text-base sm:text-lg font-semibold text-gray-900 mb-1">
                                 {formatDateTime(block.startTime)} → {formatDateTime(block.endTime)}
                               </p>
-                              <p className="text-gray-600 mb-3">
+                              <p className="text-gray-600 mb-3 text-sm sm:text-base">
                                 Duration: {getDuration(block.startTime, block.endTime)} minutes
                               </p>
-                              <div className="flex items-center space-x-3">
+                              <div className="flex items-center space-x-3 flex-wrap gap-2">
                                 <span
                                   className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border-2 ${
                                     block.reminderSent
@@ -556,14 +488,14 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                         <button
                           onClick={() => deleteBlock(block.blockId)}
                           disabled={deleteLoading === block.blockId}
-                          className="ml-4 flex items-center px-3 py-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-medium rounded-lg transition-colors disabled:opacity-50"
+                          className="ml-0 sm:ml-4 mt-2 sm:mt-0 flex items-center px-3 py-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-medium rounded-lg transition-colors disabled:opacity-50 w-full sm:w-auto justify-center"
                         >
                           {deleteLoading === block.blockId ? (
                             <Loader color="text-rose-600" />
                           ) : (
                             <>
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Remove
+                              <Trash2 className="w-4 h-4 sm:mr-1" />
+                              <span className="hidden sm:inline">Remove</span>
                             </>
                           )}
                         </button>
