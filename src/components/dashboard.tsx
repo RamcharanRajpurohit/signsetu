@@ -364,7 +364,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                           onClick={() => deleteBlock(block.blockId)}
                           className="ml-4 text-red-600 hover:text-red-900 text-sm font-medium"
                         >
-                          Delete
+                          Remove
                         </button>
                       </div>
                     </div>
