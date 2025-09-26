@@ -175,8 +175,6 @@ export function Dashboard({ onSignOut }: DashboardProps) {
           (new Date(newBlock.startTime) < new Date(block.endTime)) &&
           (new Date(newBlock.endTime) > new Date(block.startTime))
         );
-        console.log(overlappingBlock);
-        
         if (overlappingBlock) {
           setMessageText('New block overlaps with an existing block');
           setNewBlockLoading(false);
@@ -284,9 +282,8 @@ export function Dashboard({ onSignOut }: DashboardProps) {
   const formatDateTime = (date: Date) => {
     return new Date(date).toLocaleString('en-US', {
       weekday: 'short',
-      day: 'numeric',
       month: 'short',
-      year: 'numeric',
+      day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -317,7 +314,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       {/* Header */}
       <div className="bg-white/90 backdrop-blur-md border-b-2 border-yellow-200/50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between flex-wrap items-center py-6">
+          <div className="flex justify-between items-center py-6">
             <div className="flex items-center">
               <div className="flex items-center mr-6">
                 <div className="p-3 bg-gradient-to-r from-yellow-400 to-rose-400 rounded-2xl shadow-lg mr-3">
@@ -326,7 +323,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                 <Sun className="h-8 w-8 text-yellow-500" />
               </div>
               <div>
-                <h1 className="text-3xl small:bg-black font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent">
                   Quiet Hours Scheduler
                 </h1>
                 <div className="flex items-center space-x-4 text-gray-600 text-lg">
@@ -394,7 +391,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
           <div className="relative bg-white/90 backdrop-blur-md border-2 border-yellow-200/50 rounded-3xl shadow-xl">
             <div className="px-8 py-6">
               {/* Card Header */}
-              <div className="flex flex-wrap justify-between items-center mb-8">
+              <div className="flex justify-between items-center mb-8">
                 <div>
                   <div className="flex items-center mb-2">
                     <BookOpen className="h-7 w-7 text-yellow-500 mr-3" />
@@ -513,7 +510,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                       key={block.blockId}
                       className="bg-gradient-to-r from-yellow-50/50 to-rose-50/50 border-2 border-yellow-200/30 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
                     >
-                      <div className="flex justify-between flex-wrap items-start">
+                      <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="flex items-start space-x-4">
                             <div className="p-2 bg-gradient-to-r from-yellow-400 to-rose-400 rounded-lg">
