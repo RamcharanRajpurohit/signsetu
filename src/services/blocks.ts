@@ -92,6 +92,35 @@ export async function getUserStudyBlocks(userId: string): Promise<StudyBlock[]> 
   }
 }
 
+export async function deleteStudyBlockAll(userId: string): Promise<boolean> {
+  console.log('🗑️ Deleting study block...');
+  console.log('- User ID:', userId);
+
+  try {
+    const db = await connectToDatabase();
+    console.log('✅ Database connection established');
+    
+    const result = await db.collection<StudyBlock>('study_blocks').deleteMany({});
+    
+    console.log('- Delete result:', { 
+      deletedCount: result.deletedCount,
+      acknowledged: result.acknowledged 
+    });
+    
+    if (result.deletedCount === 1) {
+      console.log('✅ Study block deleted successfully');
+      return true;
+    } else {
+      console.log('⚠️ No block was deleted (block not found or user mismatch)');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error deleting study block:', error);
+    console.error('- Error type:', typeof error);
+    console.error('- Error message:', error instanceof Error ? error.message : 'Unknown error');
+    return false;
+  }
+}
 export async function deleteStudyBlock(blockId: string, userId: string): Promise<boolean> {
   console.log('🗑️ Deleting study block...');
   console.log('- Block ID:', blockId);

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, createAuthResponse } from '@/lib/auth';
-import { createStudyBlock, getUserStudyBlocks } from '@/services/blocks';
+import { createStudyBlock, deleteStudyBlockAll, getUserStudyBlocks } from '@/services/blocks';
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,4 +61,26 @@ export async function POST(request: NextRequest) {
     console.error('POST /api/blocks error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+      const user = await authenticateRequest(request);
+      
+      if (!user) {
+        return createAuthResponse('Unauthorized');
+      }
+  
+      
+      const success = await deleteStudyBlockAll(user.id);
+      
+      if (!success) {
+        return Response.json({ error: 'Block not found or could not be deleted' }, { status: 404 });
+      }
+  
+      return Response.json({ message: 'Block deleted successfully' });
+    } catch (error) {
+      console.error('DELETE /api/blocks/ error:', error);
+      return Response.json({ error: 'Internal server error' }, { status: 500 });
+    }
 }
