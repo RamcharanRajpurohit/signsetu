@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { StudyBlock } from '@/lib/mongodb';
+import { Sun, Shield, Calendar, Clock, Plus, X, RefreshCw, Trash2, CheckCircle, AlertCircle, Heart, BookOpen } from 'lucide-react';
 
 interface DashboardProps {
   onSignOut: () => void;
@@ -11,14 +12,12 @@ interface LoaderProps {
   color?: string;
 }
 
-const Loader: React.FC<LoaderProps> = ({ color }) => {
+const Loader: React.FC<LoaderProps> = ({ color = "text-white" }) => {
   return (
-    <svg className={`animate-spin h-5 w-5 ${color}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-    </svg>
+    <RefreshCw className={`animate-spin h-5 w-5 ${color}`} />
   );
 }
+
 export function Dashboard({ onSignOut }: DashboardProps) {
   const [blocks, setBlocks] = useState<StudyBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,10 +83,12 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       }
     }
   }, []);
+
   const setMessageText = async (text: string) => {
     setMessage(text);
     setTimeout(() => setMessage(''), 3000);
   }
+
   // Start polling
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -182,7 +183,6 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       }
 
       // Create the new block
-
       const response = await fetch('/api/blocks', {
         method: 'POST',
         headers: {
@@ -210,6 +210,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       setNewBlockLoading(false);
     }
   };
+
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const deleteAllBlocks = async () => {
     const confirmation = confirm('Are you sure you want to delete all study blocks? This action cannot be undone.');
@@ -241,6 +242,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       setDeleteLoading(null);
     }
   }
+
   const deleteBlock = async (blockId: string) => {
     try {
       setDeleteLoading(blockId);
@@ -294,157 +296,256 @@ export function Dashboard({ onSignOut }: DashboardProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-rose-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-r from-yellow-400 to-rose-400 shadow-lg mb-6">
+            <RefreshCw className="h-10 w-10 text-white animate-spin" />
+          </div>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent">
+            Loading your schedule...
+          </h2>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-rose-50">
+      {/* Header */}
+      <div className="bg-white/90 backdrop-blur-md border-b-2 border-yellow-200/50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Quiet Hours Scheduler
-              </h1>
-              <p className="text-gray-600">
-                Manage your study blocks
-                {isPolling && <span className="ml-2 text-green-600">● Live</span>}
-              </p>
+            <div className="flex items-center">
+              <div className="flex items-center mr-6">
+                <div className="p-3 bg-gradient-to-r from-yellow-400 to-rose-400 rounded-2xl shadow-lg mr-3">
+                  <Shield className="h-8 w-8 text-white" />
+                </div>
+                <Sun className="h-8 w-8 text-yellow-500" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent">
+                  Quiet Hours Scheduler
+                </h1>
+                <div className="flex items-center space-x-4 text-gray-600 text-lg">
+                  <span>Manage your study blocks</span>
+                  {isPolling && (
+                    <div className="flex items-center text-green-600">
+                      <div className="h-2 w-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>
+                      <span className="text-sm font-medium">Live</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
               <button
                 onClick={handleManualRefresh}
-                className="bg-blue-600 hover:bg-blue-700 hover:cursor-pointer text-white px-3 py-2 rounded-md text-sm font-medium"
+                className="flex items-center px-4 py-3 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
                 title="Manual refresh"
               >
-                🔄 Refresh
+                <RefreshCw className="w-5 h-5 mr-2" />
+                Refresh
               </button>
               <button
                 onClick={onSignOut}
-                className="bg-gray-600 hover:bg-gray-700 hover:cursor-pointer text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="flex items-center px-4 py-3 bg-white hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 text-gray-700 font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-sm"
               >
                 Sign Out
               </button>
             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0 ">
-          {message && (
-              <div className={`mb-4 p-4  rounded-md ${message.includes('successfully') || message.includes('sent') || message.includes('Updated') ? 'bg-green-50 text-green-800' : message.includes('Refreshing') ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-800'}`}>
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        {/* Message Display */}
+        {message && (
+          <div className="mb-6">
+            <div className={`p-4 rounded-xl text-lg font-medium border-2 ${
+              message.includes('successfully') || message.includes('sent') || message.includes('Updated')
+                ? 'bg-green-50 text-green-700 border-green-200'
+                : message.includes('Refreshing')
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : 'bg-rose-50 text-rose-700 border-rose-200'
+            }`}>
+              <div className="flex items-center">
+                {message.includes('successfully') || message.includes('sent') || message.includes('Updated') ? (
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                ) : message.includes('Refreshing') ? (
+                  <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                )}
                 {message}
+              </div>
             </div>
-          )}
+          </div>
+        )}
 
-          <div className="bg-white overflow-hidden shadow rounded-lg">
-            <div className="px-4 py-5 sm:p-6">
-              <div className="flex justify-between items-center mb-6">
+        {/* Main Card */}
+        <div className="relative">
+          {/* Background blur effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-yellow-200/20 to-rose-200/20 rounded-3xl blur-3xl"></div>
+          
+          <div className="relative bg-white/90 backdrop-blur-md border-2 border-yellow-200/50 rounded-3xl shadow-xl">
+            <div className="px-8 py-6">
+              {/* Card Header */}
+              <div className="flex justify-between items-center mb-8">
                 <div>
-                  <h2 className="text-lg font-medium text-gray-900">Study Blocks</h2>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <div className="flex items-center mb-2">
+                    <BookOpen className="h-7 w-7 text-yellow-500 mr-3" />
+                    <h2 className="text-2xl font-bold text-gray-800">Study Blocks</h2>
+                  </div>
+                  <p className="text-gray-600 text-lg">
                     Auto-refreshes every 30 seconds to show reminder status
                   </p>
                 </div>
-                <div className='flex space-x-2'>
-
+                <div className="flex items-center space-x-3">
                   <button
                     onClick={() => deleteAllBlocks()}
-                    className="bg-indigo-600 hover:bg-indigo-700 hover:cursor-pointer text-white px-4 py-2 rounded-md text-sm font-medium"
+                    disabled={deleteLoading === 'all'}
+                    className="flex items-center px-4 py-3 bg-white hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 text-rose-600 font-medium rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 shadow-sm"
                   >
+                    {deleteLoading === 'all' ? (
+                      <Loader color="text-rose-600" />
+                    ) : (
+                      <Trash2 className="w-5 h-5 mr-2" />
+                    )}
                     Remove All
                   </button>
                   <button
                     onClick={() => setShowCreateForm(!showCreateForm)}
-                    className="bg-indigo-600 hover:bg-indigo-700 hover:cursor-pointer text-white px-4 py-2 rounded-md text-sm font-medium"
+                    className="flex items-center px-4 py-3 bg-gradient-to-r from-yellow-400 to-rose-400 hover:from-yellow-500 hover:to-rose-500 text-white font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
                   >
-                    {showCreateForm ? 'Cancel' : 'Add'}
+                    {showCreateForm ? (
+                      <>
+                        <X className="w-5 h-5 mr-2" />
+                        Cancel
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-5 h-5 mr-2" />
+                        Add Block
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
 
+              {/* Create Form */}
               {showCreateForm && (
-                <form onSubmit={createBlock} aria-disabled={NewBlockLoading} className="mb-6 p-4 border rounded-lg bg-gray-50">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                      <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
-                        Start Time
-                      </label>
-                      <input
-                        type="datetime-local"
-                        id="startTime"
-                        required
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={newBlock.startTime}
-                        onChange={(e) => setNewBlock({ ...newBlock, startTime: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">
-                        End Time
-                      </label>
-                      <input
-                        type="datetime-local"
-                        id="endTime"
-                        required
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={newBlock.endTime}
-                        onChange={(e) => setNewBlock({ ...newBlock, endTime: e.target.value })}
-                      />
-                    </div>
+                <div className="mb-8">
+                  <div className="bg-gradient-to-r from-yellow-50 to-rose-50 border-2 border-yellow-200/50 rounded-2xl p-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                      <Calendar className="w-6 h-6 mr-2 text-yellow-500" />
+                      Create New Study Block
+                    </h3>
+                    <form onSubmit={createBlock} className="space-y-4">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                          <label htmlFor="startTime" className="block text-sm font-semibold text-gray-700 mb-2">
+                            Start Time *
+                          </label>
+                          <input
+                            type="datetime-local"
+                            id="startTime"
+                            required
+                            className="block w-full px-4 py-3 border-2 border-yellow-200 focus:border-rose-400 focus:ring-rose-200 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 text-lg transition-all"
+                            value={newBlock.startTime}
+                            onChange={(e) => setNewBlock({ ...newBlock, startTime: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="endTime" className="block text-sm font-semibold text-gray-700 mb-2">
+                            End Time *
+                          </label>
+                          <input
+                            type="datetime-local"
+                            id="endTime"
+                            required
+                            className="block w-full px-4 py-3 border-2 border-yellow-200 focus:border-rose-400 focus:ring-rose-200 placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 text-lg transition-all"
+                            value={newBlock.endTime}
+                            onChange={(e) => setNewBlock({ ...newBlock, endTime: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <button
+                          type="submit"
+                          disabled={NewBlockLoading}
+                          className="flex items-center px-6 py-3 bg-gradient-to-r from-yellow-400 to-rose-400 hover:from-yellow-500 hover:to-rose-500 text-white font-bold rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                        >
+                          {NewBlockLoading ? (
+                            <>
+                              <Loader />
+                              <span className="ml-2">Creating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-5 h-5 mr-2" />
+                              Create Block
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                  <div className="mt-4">
-                    <button
-                      type="submit"
-                      disabled={NewBlockLoading ? true : false}
-                      className="bg-indigo-600 hover:bg-indigo-700 hover:cursor-pointer text-white px-4 py-2 rounded-md text-sm font-medium"
-                    >
-                      {
-                        NewBlockLoading ? <Loader color="text-white" /> : 'Add'
-                      }
-                    </button>
-                  </div>
-                </form>
+                </div>
               )}
 
+              {/* Blocks List */}
               <div className="space-y-4">
                 {blocks.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="text-gray-400 text-6xl mb-4">📚</div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No study blocks yet</h3>
-                    <p className="text-gray-500">Create your first study block to get started!</p>
+                  <div className="text-center py-16">
+                    <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-r from-yellow-400 to-rose-400 shadow-lg mb-6">
+                      <BookOpen className="h-10 w-10 text-white" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-800 mb-3">No study blocks yet</h3>
+                    <p className="text-gray-600 text-lg">Create your first study block to get started on your productive journey!</p>
                   </div>
                 ) : (
                   blocks.map((block) => (
                     <div
                       key={block.blockId}
-                      className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                      className="bg-gradient-to-r from-yellow-50/50 to-rose-50/50 border-2 border-yellow-200/30 rounded-2xl p-6 hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-4">
+                          <div className="flex items-start space-x-4">
+                            <div className="p-2 bg-gradient-to-r from-yellow-400 to-rose-400 rounded-lg">
+                              <Clock className="h-6 w-6 text-white" />
+                            </div>
                             <div className="flex-1">
-                              <p className="text-sm font-medium text-gray-900">
-                                📅 {formatDateTime(block.startTime)} → {formatDateTime(block.endTime)}
+                              <p className="text-lg font-semibold text-gray-900 mb-1">
+                                {formatDateTime(block.startTime)} → {formatDateTime(block.endTime)}
                               </p>
-                              <p className="text-sm text-gray-500">
+                              <p className="text-gray-600 mb-3">
                                 Duration: {getDuration(block.startTime, block.endTime)} minutes
                               </p>
-                              <div className="flex items-center space-x-2 mt-2">
+                              <div className="flex items-center space-x-3">
                                 <span
-                                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${block.reminderSent
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-yellow-100 text-yellow-800'
-                                    }`}
+                                  className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border-2 ${
+                                    block.reminderSent
+                                      ? 'bg-green-50 text-green-700 border-green-200'
+                                      : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                  }`}
                                 >
-                                  {block.reminderSent ? 'Reminder Sent' : 'Reminder Pending'}
+                                  {block.reminderSent ? (
+                                    <>
+                                      <CheckCircle className="w-4 h-4 mr-1" />
+                                      Reminder Sent
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-4 h-4 mr-1" />
+                                      Reminder Pending
+                                    </>
+                                  )}
                                 </span>
-                                {new Date(block.startTime) <= new Date() && (
-                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                {new Date(block.startTime) <= new Date() && new Date() <= new Date(block.endTime) && (
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-50 text-blue-700 border-2 border-blue-200">
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full mr-2 animate-pulse"></div>
                                     In Progress
                                   </span>
                                 )}
@@ -454,17 +555,17 @@ export function Dashboard({ onSignOut }: DashboardProps) {
                         </div>
                         <button
                           onClick={() => deleteBlock(block.blockId)}
-                          disabled={deleteLoading ? true : false}
-                          className="ml-4 text-red-600 hover:cursor-pointer hover:text-red-900 text-sm font-medium"
+                          disabled={deleteLoading === block.blockId}
+                          className="ml-4 flex items-center px-3 py-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 font-medium rounded-lg transition-colors disabled:opacity-50"
                         >
-                          {
-                            deleteLoading &&
-                              deleteLoading === block.blockId ? (
-                              <Loader />
-                            ) : (
-                              'Remove'
-                            )
-                          }
+                          {deleteLoading === block.blockId ? (
+                            <Loader color="text-rose-600" />
+                          ) : (
+                            <>
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Remove
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
@@ -473,6 +574,13 @@ export function Dashboard({ onSignOut }: DashboardProps) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-gray-600">
+          <p className="flex items-center justify-center text-lg">
+            Built with <Heart className="h-5 w-5 text-rose-500 mx-2" /> for peaceful productivity
+          </p>
         </div>
       </main>
     </div>

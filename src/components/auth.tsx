@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Mail, Lock, Eye, EyeOff, Sun, Shield, CheckCircle, AlertCircle, RefreshCw, ArrowLeft, Heart } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 interface AuthProps {
@@ -17,39 +18,81 @@ export function AuthComponent({ onAuthChange }: AuthProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
-  
-  // Password visibility states
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
 
+  // Enhanced validation with visual feedback
+  const validateInputs = () => {
+    const errors: { [key: string]: string } = {};
+    
+    // Email validation
+    if (!email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    // Password validation
+    if (mode !== 'forgot-password') {
+      if (!password.trim()) {
+        errors.password = 'Password is required';
+      } else if (password.length < 6) {
+        errors.password = 'Password must be at least 6 characters';
+      }
+    }
+    
+    // Confirm password validation
+    if ((mode === 'signup' || mode === 'reset-password')) {
+      if (!confirmPassword.trim()) {
+        errors.confirmPassword = 'Please confirm your password';
+      } else if (password !== confirmPassword) {
+        errors.confirmPassword = 'Passwords do not match';
+      }
+    }
+    
+    setFieldErrors(errors);
+    
+    if (Object.keys(errors).length > 0) {
+      setMessage('Please fix the errors below');
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Enhanced auth handler - KEEPING YOUR ORIGINAL SUPABASE LOGIC
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setMessage('');
+    setFieldErrors({});
+
+    if (!validateInputs()) return;
+
+    setLoading(true);
 
     try {
       switch (mode) {
-        case 'login':
+        case 'login': {
           const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
             email,
             password,
           });
-          
+
           if (loginError) {
-            // Check if it's an email not confirmed error
-            if (loginError.message.toLowerCase().includes('email not confirmed') || 
-                loginError.message.toLowerCase().includes('signup requires email confirmation')) {
+            if (
+              loginError.message.toLowerCase().includes('email not confirmed') || 
+              loginError.message.toLowerCase().includes('signup requires email confirmation')
+            ) {
               setUnverifiedEmail(email);
               setMessage('Your email is not verified. Check your inbox or click "Resend verification email" below.');
             } else {
-              throw loginError;
+              setMessage('Invalid credentials. Please try again.');
             }
           } else if (loginData.user) {
-            // Check if user email is confirmed
             if (!loginData.user.email_confirmed_at) {
               setUnverifiedEmail(email);
               setMessage('Your email is not verified. Check your inbox or click "Resend verification email" below.');
-              // Automatically resend verification email
               await handleResendVerification();
             } else {
               setMessage('Successfully signed in!');
@@ -57,49 +100,43 @@ export function AuthComponent({ onAuthChange }: AuthProps) {
             }
           }
           break;
+        }
 
-        case 'signup':
-          if (password !== confirmPassword) {
-            setMessage('Passwords do not match');
-            return;
-          }
-          
+        case 'signup': {
           const { error: signupError } = await supabase.auth.signUp({
             email,
             password,
             options: {
-              emailRedirectTo: `${window.location.origin}/auth/callback`
-            }
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
           });
-          
+
           if (signupError) throw signupError;
           setUnverifiedEmail(email);
           setMode('email-sent');
           break;
+        }
 
-        case 'forgot-password':
+        case 'forgot-password': {
           const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/auth/reset-password`
+            redirectTo: `${window.location.origin}/auth/reset-password`,
           });
-          
+
           if (resetError) throw resetError;
           setMode('email-sent');
           break;
+        }
 
-        case 'reset-password':
-          if (password !== confirmPassword) {
-            setMessage('Passwords do not match');
-            return;
-          }
-          
+        case 'reset-password': {
           const { error: updateError } = await supabase.auth.updateUser({
-            password: password
+            password: password,
           });
-          
+
           if (updateError) throw updateError;
           setMessage('Password updated successfully! You can now sign in.');
           setMode('login');
           break;
+        }
       }
     } catch (error: any) {
       setMessage(error.message || 'An error occurred');
@@ -113,17 +150,17 @@ export function AuthComponent({ onAuthChange }: AuthProps) {
       setMessage('Please enter your email address');
       return;
     }
-    
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: unverifiedEmail || email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         }
       });
-      
+
       if (error) throw error;
       setMessage('Verification email sent! Please check your inbox.');
     } catch (error: any) {
@@ -136,23 +173,15 @@ export function AuthComponent({ onAuthChange }: AuthProps) {
   const openEmail = () => {
     const emailDomain = email.split('@')[1];
     let emailUrl = 'mailto:';
-    
-    // Popular email providers
+
     switch (emailDomain) {
-      case 'gmail.com':
-        emailUrl = 'https://mail.google.com';
-        break;
-      case 'yahoo.com':
-        emailUrl = 'https://mail.yahoo.com';
-        break;
+      case 'gmail.com': emailUrl = 'https://mail.google.com'; break;
+      case 'yahoo.com': emailUrl = 'https://mail.yahoo.com'; break;
       case 'outlook.com':
-      case 'hotmail.com':
-        emailUrl = 'https://outlook.live.com';
-        break;
-      default:
-        emailUrl = `mailto:${email}`;
+      case 'hotmail.com': emailUrl = 'https://outlook.live.com'; break;
+      default: emailUrl = `mailto:${email}`;
     }
-    
+
     window.open(emailUrl, '_blank');
   };
 
@@ -162,9 +191,9 @@ export function AuthComponent({ onAuthChange }: AuthProps) {
     setConfirmPassword('');
     setMessage('');
     setUnverifiedEmail('');
-    // Reset password visibility states
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setFieldErrors({});
   };
 
   const switchMode = (newMode: AuthMode) => {
@@ -194,104 +223,99 @@ export function AuthComponent({ onAuthChange }: AuthProps) {
     }
   };
 
-  // Eye Icon Components
-  const EyeIcon = () => (
-    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-    </svg>
-  );
-
-  const EyeOffIcon = () => (
-    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.464 8.464M9.878 9.878l-.872-.872m5.242 5.242L15.535 15.535M14.122 14.122l.872.872m-.872-.872l-4.242-4.242" />
-    </svg>
-  );
-
-  // Email sent success page
+  // Email sent success screen
   if (mode === 'email-sent') {
     const isPasswordReset = !unverifiedEmail;
     const emailForDisplay = unverifiedEmail || email;
-    
+
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
-          <div className="text-center">
-            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-              <svg className="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-rose-50">
+        <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+          <div className="max-w-md w-full">
+            {/* Background blur effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-yellow-200/20 to-rose-200/20 rounded-3xl blur-3xl"></div>
+            
+            <div className="relative bg-white/90 backdrop-blur-md border-2 border-yellow-200/50 rounded-3xl shadow-xl p-8">
+              <div className="text-center">
+                {/* Success icon with gradient */}
+                <div className="mx-auto flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-r from-green-400 to-emerald-500 shadow-lg mb-6">
+                  <CheckCircle className="h-10 w-10 text-white" />
+                </div>
+
+                {/* Header with gradient text */}
+                <div className="flex items-center justify-center mb-4">
+                  <Sun className="h-8 w-8 text-yellow-500 mr-3" />
+                  <h2 className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent">
+                    Quiet Hours Scheduler
+                  </h2>
+                </div>
+
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">
+                  {isPasswordReset ? 'Reset Email Sent!' : 'Verification Email Sent!'}
+                </h3>
+                
+                <p className="text-gray-600 text-lg mb-6">
+                  We've sent {isPasswordReset ? 'a password reset link' : 'a verification link'} to:
+                </p>
+                
+                <div className="bg-gradient-to-r from-yellow-100 to-rose-100 border-2 border-yellow-200 px-6 py-4 rounded-xl mb-8">
+                  <p className="font-semibold text-gray-800 text-lg">{emailForDisplay}</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="text-center text-gray-600 bg-gradient-to-r from-yellow-50 to-rose-50 p-6 rounded-xl border border-yellow-200">
+                  <p className="mb-4 text-lg">
+                    {isPasswordReset 
+                      ? 'Click the link in your email to reset your password. The link will expire in 1 hour.' 
+                      : 'Click the link in your email to verify your account and complete the registration.'}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    💡 Didn't receive the email? Check your spam folder or try again in a few minutes.
+                  </p>
+                </div>
+
+                {/* Action buttons with gradients */}
+                <button
+                  onClick={openEmail}
+                  className="w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white text-lg font-medium rounded-xl transition-all duration-200 hover:scale-105 shadow-lg"
+                >
+                  <Mail className="w-5 h-5 mr-3" />
+                  Open Email App
+                </button>
+
+                {!isPasswordReset && (
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center px-6 py-4 bg-white hover:bg-rose-50 border-2 border-rose-200 hover:border-rose-300 text-gray-700 text-lg font-medium rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                    <RefreshCw className={`w-5 h-5 mr-3 ${loading ? 'animate-spin' : ''}`} />
+                    {loading ? 'Sending...' : 'Resend Email'}
+                  </button>
+                )}
+
+                {message && (
+                  <div className={`text-center p-4 rounded-xl text-lg font-medium ${
+                    message.includes('error') || message.includes('Error') || message.includes('Failed')
+                      ? 'bg-rose-50 text-rose-700 border-2 border-rose-200' 
+                      : 'bg-green-50 text-green-700 border-2 border-green-200'
+                  }`}>
+                    {message}
+                  </div>
+                )}
+
+                <div className="text-center pt-4">
+                  <button
+                    onClick={() => switchMode('login')}
+                    className="flex items-center justify-center mx-auto text-yellow-600 hover:text-rose-600 text-lg font-medium transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5 mr-2" />
+                    Back to sign in
+                  </button>
+                </div>
+              </div>
             </div>
-            <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
-              🔕 Quiet Hours Scheduler
-            </h2>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
-              {isPasswordReset ? 'Password reset email sent!' : 'Verification email sent!'}
-            </h3>
-            <p className="text-sm text-gray-600 mb-6">
-              We've sent {isPasswordReset ? 'a password reset link' : 'a verification link'} to:
-            </p>
-            <p className="text-sm font-medium text-gray-900 bg-gray-100 px-4 py-2 rounded-md mb-6">
-              {emailForDisplay}
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <div className="text-center text-sm text-gray-600">
-              <p className="mb-4">
-                {isPasswordReset 
-                  ? 'Click the link in your email to reset your password. The link will expire in 1 hour.' 
-                  : 'Click the link in your email to verify your account and complete the registration.'}
-              </p>
-              <p className="text-xs text-gray-500">
-                Didn't receive the email? Check your spam folder or try again in a few minutes.
-              </p>
-            </div>
-
-            {/* Open Email Button */}
-            <button
-              onClick={openEmail}
-              className="w-full flex items-center justify-center px-4 py-2 border border-indigo-300 text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-              Open Email App
-            </button>
-
-            {/* Resend Email Button */}
-            {!isPasswordReset && (
-              <button
-                onClick={handleResendVerification}
-                disabled={loading}
-                className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                {loading ? 'Sending...' : 'Resend Email'}
-              </button>
-            )}
-          </div>
-
-          {message && (
-            <div className={`text-sm text-center p-3 rounded-md ${
-              message.includes('error') || message.includes('Error') || message.includes('Failed')
-                ? 'bg-red-50 text-red-600 border border-red-200' 
-                : 'bg-green-50 text-green-600 border border-green-200'
-            }`}>
-              {message}
-            </div>
-          )}
-
-          {/* Back to Login */}
-          <div className="text-center">
-            <button
-              onClick={() => switchMode('login')}
-              className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
-            >
-              ← Back to sign in
-            </button>
           </div>
         </div>
       </div>
@@ -299,173 +323,261 @@ export function AuthComponent({ onAuthChange }: AuthProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            🔕 Quiet Hours Scheduler
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {getTitle()}
-          </p>
-        </div>
-
-        <form className="mt-8 space-y-6" onSubmit={handleAuth}>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-white to-rose-50">
+      <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full">
+          {/* Background blur effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-yellow-200/20 to-rose-200/20 rounded-3xl blur-3xl"></div>
+          
+          <div className="relative bg-white/90 backdrop-blur-md border-2 border-yellow-200/50 rounded-3xl shadow-xl p-8">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="flex items-center justify-center mb-4">
+                <div className="p-3 bg-gradient-to-r from-yellow-400 to-rose-400 rounded-2xl shadow-lg mr-3">
+                  <Shield className="h-8 w-8 text-white" />
+                </div>
+                <Sun className="h-8 w-8 text-yellow-500" />
+              </div>
+              <h2 className="text-4xl font-bold bg-gradient-to-r from-yellow-600 to-rose-600 bg-clip-text text-transparent mb-2">
+                Quiet Hours Scheduler
+              </h2>
+              <p className="text-gray-600 text-lg font-medium">
+                {getTitle()}
+              </p>
             </div>
 
-            {mode !== 'forgot-password' && (
-              <div className="relative">
-                <label htmlFor="password" className="sr-only">
-                  Password
+            <div className="space-y-6">{/* Form wrapper */}
+              {/* Email Field */}
+              <div>
+                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                  Email Address *
                 </label>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-                  required
-                  className="relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder={mode === 'reset-password' ? 'New password' : 'Password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    className={`block w-full pl-10 pr-3 py-4 border-2 ${
+                      fieldErrors.email 
+                        ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200' 
+                        : 'border-yellow-200 focus:border-rose-400 focus:ring-rose-200'
+                    } placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 text-lg transition-all`}
+                    placeholder="Enter your email address"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (fieldErrors.email) {
+                        setFieldErrors(prev => ({ ...prev, email: '' }));
+                      }
+                    }}
+                  />
+                </div>
+                {fieldErrors.email && (
+                  <p className="mt-2 text-sm text-rose-600 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-1" />
+                    {fieldErrors.email}
+                  </p>
+                )}
               </div>
-            )}
 
-            {(mode === 'signup' || mode === 'reset-password') && (
-              <div className="relative">
-                <label htmlFor="confirmPassword" className="sr-only">
-                  Confirm Password
-                </label>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  required
-                  className="relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Confirm password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOffIcon /> : <EyeIcon />}
-                </button>
-              </div>
-            )}
-          </div>
+              {/* Password Field */}
+              {mode !== 'forgot-password' && (
+                <div>
+                  <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
+                    {mode === 'reset-password' ? 'New Password' : 'Password'} *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                      required
+                      className={`block w-full pl-10 pr-12 py-4 border-2 ${
+                        fieldErrors.password 
+                          ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200' 
+                          : 'border-yellow-200 focus:border-rose-400 focus:ring-rose-200'
+                      } placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 text-lg transition-all`}
+                      placeholder={mode === 'reset-password' ? 'Enter new password' : 'Enter your password'}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (fieldErrors.password) {
+                          setFieldErrors(prev => ({ ...prev, password: '' }));
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-rose-600 transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  {fieldErrors.password && (
+                    <p className="mt-2 text-sm text-rose-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.password}
+                    </p>
+                  )}
+                </div>
+              )}
 
-          {message && (
-            <div className={`text-sm text-center ${
-              message.includes('error') || message.includes('Error') || message.includes('not verified') 
-                ? 'text-red-600' 
-                : 'text-green-600'
-            }`}>
-              {message}
-            </div>
-          )}
+              {/* Confirm Password Field */}
+              {(mode === 'signup' || mode === 'reset-password') && (
+                <div>
+                  <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Confirm Password *
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      autoComplete="new-password"
+                      required
+                      className={`block w-full pl-10 pr-12 py-4 border-2 ${
+                        fieldErrors.confirmPassword 
+                          ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200' 
+                          : 'border-yellow-200 focus:border-rose-400 focus:ring-rose-200'
+                      } placeholder-gray-500 text-gray-900 rounded-xl focus:outline-none focus:ring-2 text-lg transition-all`}
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        if (fieldErrors.confirmPassword) {
+                          setFieldErrors(prev => ({ ...prev, confirmPassword: '' }));
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center hover:text-rose-600 transition-colors"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  {fieldErrors.confirmPassword && (
+                    <p className="mt-2 text-sm text-rose-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {fieldErrors.confirmPassword}
+                    </p>
+                  )}
+                </div>
+              )}
 
-          {/* Resend verification email button */}
-          {unverifiedEmail && (
-            <div className="text-center">
+              {/* Message Display */}
+              {message && (
+                <div className={`text-center p-4 rounded-xl text-lg font-medium ${
+                  message.toLowerCase().includes('error') || 
+                  message.toLowerCase().includes('not verified') || 
+                  message.toLowerCase().includes('invalid credentials') ||
+                  message.toLowerCase().includes('fix the errors')
+                    ? 'bg-rose-50 text-rose-700 border-2 border-rose-200'
+                    : 'bg-green-50 text-green-700 border-2 border-green-200'
+                }`}>
+                  {message}
+                </div>
+              )}
+
+              {/* Resend verification button */}
+              {unverifiedEmail && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={handleResendVerification}
+                    disabled={loading}
+                    className="text-yellow-600 hover:text-rose-600 text-lg font-medium underline disabled:opacity-50 transition-colors"
+                  >
+                    Resend verification email
+                  </button>
+                </div>
+              )}
+
+              {/* Submit Button */}
               <button
                 type="button"
-                onClick={handleResendVerification}
+                onClick={handleAuth}
                 disabled={loading}
-                className="text-indigo-600 hover:text-indigo-500 text-sm underline disabled:opacity-50"
+                className="w-full flex items-center justify-center py-4 px-6 bg-gradient-to-r from-yellow-400 to-rose-400 hover:from-yellow-500 hover:to-rose-500 text-white text-xl font-bold rounded-xl transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
               >
-                Resend verification email
+                {loading && <RefreshCw className="w-5 h-5 mr-3 animate-spin" />}
+                {getButtonText()}
               </button>
+
+              {/* Navigation Links */}
+              <div className="space-y-4">
+                {mode === 'login' && (
+                  <>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        className="text-yellow-600 hover:text-rose-600 text-lg font-medium transition-colors"
+                        onClick={() => switchMode('forgot-password')}
+                      >
+                        Forgot your password?
+                      </button>
+                    </div>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        className="text-yellow-600 hover:text-rose-600 text-lg font-medium transition-colors"
+                        onClick={() => switchMode('signup')}
+                      >
+                        Don't have an account? Sign up
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {mode === 'signup' && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="text-yellow-600 hover:text-rose-600 text-lg font-medium transition-colors"
+                      onClick={() => switchMode('login')}
+                    >
+                      Already have an account? Sign in
+                    </button>
+                  </div>
+                )}
+
+                {(mode === 'forgot-password' || mode === 'reset-password') && (
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      className="flex items-center justify-center mx-auto text-yellow-600 hover:text-rose-600 text-lg font-medium transition-colors"
+                      onClick={() => switchMode('login')}
+                    >
+                      <ArrowLeft className="w-5 h-5 mr-2" />
+                      Back to sign in
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-              {getButtonText()}
-            </button>
           </div>
 
-          {/* Navigation buttons */}
-          <div className="space-y-2">
-            {mode === 'login' && (
-              <>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    className="text-indigo-600 hover:text-indigo-500 text-sm"
-                    onClick={() => switchMode('forgot-password')}
-                  >
-                    Forgot your password?
-                  </button>
-                </div>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    className="text-indigo-600 hover:text-indigo-500 text-sm"
-                    onClick={() => switchMode('signup')}
-                  >
-                    Don't have an account? Sign up
-                  </button>
-                </div>
-              </>
-            )}
-
-            {mode === 'signup' && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  className="text-indigo-600 hover:text-indigo-500 text-sm"
-                  onClick={() => switchMode('login')}
-                >
-                  Already have an account? Sign in
-                </button>
-              </div>
-            )}
-
-            {(mode === 'forgot-password' || mode === 'reset-password') && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  className="text-indigo-600 hover:text-indigo-500 text-sm"
-                  onClick={() => switchMode('login')}
-                >
-                  Back to sign in
-                </button>
-              </div>
-            )}
+          {/* Footer */}
+          <div className="text-center mt-8 text-gray-600">
+            <p className="flex items-center justify-center text-lg">
+              Built with <Heart className="h-5 w-5 text-rose-500 mx-2" /> for peaceful productivity
+            </p>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
