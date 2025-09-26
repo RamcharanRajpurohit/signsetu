@@ -3,8 +3,32 @@ import { startScheduler, stopScheduler, getSchedulerStatus } from '@/lib/schedul
 
 console.log('🎛️ Scheduler API route loaded');
 
+// 🚀 AUTO-START SCHEDULER FOR PRODUCTION
+// This ensures scheduler starts automatically when this API route is accessed
+const initializeScheduler = () => {
+  try {
+    const status = getSchedulerStatus();
+    
+    if (!status.isRunning) {
+      console.log('🔄 Scheduler not running, auto-starting...');
+      startScheduler();
+      console.log('✅ Scheduler auto-started successfully');
+    } else {
+      console.log('✅ Scheduler already running');
+    }
+  } catch (error) {
+    console.error('❌ Failed to auto-start scheduler:', error);
+  }
+};
+
+// Auto-start scheduler when this module loads
+initializeScheduler();
+
 export async function GET(request: NextRequest) {
   console.log('📊 GET /api/scheduler - Status check');
+  
+  // Ensure scheduler is running on every GET request
+  initializeScheduler();
   
   try {
     const status = getSchedulerStatus();
@@ -13,7 +37,8 @@ export async function GET(request: NextRequest) {
       status: 'success',
       scheduler: status,
       timestamp: new Date().toISOString(),
-      timezone: 'Asia/Kolkata'
+      timezone: 'Asia/Kolkata',
+      message: status.isRunning ? 'Scheduler is running' : 'Scheduler is stopped'
     });
   } catch (error) {
     console.error('❌ Error getting scheduler status:', error);
