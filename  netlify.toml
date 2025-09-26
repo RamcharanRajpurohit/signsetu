@@ -1,23 +1,13 @@
 [build]
   command = "npm run build"
-  functions = "netlify/functions"
   publish = ".next"
 
 [build.environment]
   TZ = "Asia/Kolkata"
   NODE_VERSION = "18"
 
-# Scheduled Function - Runs every minute
-[[functions]]
-  name = "scheduled-reminder"
-  schedule = "* * * * *"
-  
-# API Routes Configuration
+# Only keep API redirects
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
-
-# Next.js Configuration
-[functions]
-  node_bundler = "esbuild"
