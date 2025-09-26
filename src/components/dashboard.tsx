@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { StudyBlock } from '@/lib/mongodb';
 
@@ -17,17 +17,25 @@ export function Dashboard({ onSignOut }: DashboardProps) {
     endTime: '',
   });
   const [message, setMessage] = useState('');
+  const [isPolling, setIsPolling] = useState(true);
+  
+  // Use ref to store the latest blocks for comparison
+  const blocksRef = useRef<StudyBlock[]>([]);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    fetchBlocks();
-  }, []);
-
-  const fetchBlocks = async () => {
+  // Memoized fetchBlocks function to prevent unnecessary re-renders
+  const fetchBlocks = useCallback(async (showLoadingState = false) => {
     try {
+      if (showLoadingState) {
+        setLoading(true);
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         setMessage('Please sign in to view your blocks');
-        setLoading(false);
+        if (showLoadingState) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -39,14 +47,89 @@ export function Dashboard({ onSignOut }: DashboardProps) {
 
       if (response.ok) {
         const data = await response.json();
-        setBlocks(data.blocks);
+        const newBlocks = data.blocks;
+        
+        // Only update state if blocks have actually changed
+        if (JSON.stringify(newBlocks) !== JSON.stringify(blocksRef.current)) {
+          console.log('📊 Blocks updated, refreshing UI...');
+          setBlocks(newBlocks);
+          blocksRef.current = newBlocks;
+          
+          // Show a brief success message if reminder status changed
+          const hadPendingReminders = blocksRef.current.some(block => !block.reminderSent);
+          const hasPendingReminders = newBlocks.some((block: StudyBlock) => !block.reminderSent);
+          
+          if (hadPendingReminders && !hasPendingReminders) {
+            setMessage('Reminder sent successfully!');
+            setTimeout(() => setMessage(''), 3000); // Clear message after 3 seconds
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching blocks:', error);
+      // Don't show error message during polling to avoid spam
     } finally {
-      setLoading(false);
+      if (showLoadingState) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
+
+  // Start polling
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+    
+    // Poll every 30 seconds to check for reminder status updates
+    pollingIntervalRef.current = setInterval(() => {
+      if (isPolling) {
+        fetchBlocks(false);
+      }
+    }, 30000);
+    
+    console.log('📡 Started polling for block updates every 30 seconds');
+  }, [fetchBlocks, isPolling]);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+      console.log('📡 Stopped polling for block updates');
+    }
+  }, []);
+
+  // Initial load and setup polling
+  useEffect(() => {
+    fetchBlocks(true);
+    startPolling();
+
+    // Cleanup on unmount
+    return () => {
+      stopPolling();
+    };
+  }, [fetchBlocks, startPolling, stopPolling]);
+
+  // Handle visibility change to pause/resume polling when tab is not active
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsPolling(false);
+        console.log('📡 Paused polling (tab not visible)');
+      } else {
+        setIsPolling(true);
+        // Immediately fetch when tab becomes visible again
+        fetchBlocks(false);
+        console.log('📡 Resumed polling (tab visible)');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchBlocks]);
 
   const createBlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,7 +154,8 @@ export function Dashboard({ onSignOut }: DashboardProps) {
         setMessage('Study block created successfully!');
         setNewBlock({ startTime: '', endTime: '' });
         setShowCreateForm(false);
-        fetchBlocks();
+        // Immediately fetch to update the UI
+        await fetchBlocks(false);
       } else {
         setMessage(data.error || 'Failed to create block');
       }
@@ -94,13 +178,22 @@ export function Dashboard({ onSignOut }: DashboardProps) {
 
       if (response.ok) {
         setMessage('Block deleted successfully!');
-        fetchBlocks();
+        // Immediately fetch to update the UI
+        await fetchBlocks(false);
       } else {
         setMessage('Failed to delete block');
       }
     } catch (error) {
       setMessage('Error deleting block');
     }
+  };
+
+  // Manual refresh function
+  const handleManualRefresh = async () => {
+    setMessage('Refreshing...');
+    await fetchBlocks(false);
+    setMessage('Updated!');
+    setTimeout(() => setMessage(''), 2000);
   };
 
   const formatDateTime = (date: Date) => {
@@ -135,14 +228,26 @@ export function Dashboard({ onSignOut }: DashboardProps) {
               <h1 className="text-3xl font-bold text-gray-900">
                 🔕 Quiet Hours Scheduler
               </h1>
-              <p className="text-gray-600">Manage your study blocks</p>
+              <p className="text-gray-600">
+                Manage your study blocks 
+                {isPolling && <span className="ml-2 text-green-600">● Live</span>}
+              </p>
             </div>
-            <button
-              onClick={onSignOut}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-            >
-              Sign Out
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleManualRefresh}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium"
+                title="Manual refresh"
+              >
+                🔄 Refresh
+              </button>
+              <button
+                onClick={onSignOut}
+                className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -150,7 +255,7 @@ export function Dashboard({ onSignOut }: DashboardProps) {
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-4 py-6 sm:px-0">
           {message && (
-            <div className={`mb-4 p-4 rounded-md ${message.includes('successfully') ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+            <div className={`mb-4 p-4 rounded-md ${message.includes('successfully') || message.includes('sent') || message.includes('Updated') ? 'bg-green-50 text-green-800' : message.includes('Refreshing') ? 'bg-blue-50 text-blue-800' : 'bg-red-50 text-red-800'}`}>
               {message}
             </div>
           )}
@@ -158,7 +263,12 @@ export function Dashboard({ onSignOut }: DashboardProps) {
           <div className="bg-white overflow-hidden shadow rounded-lg">
             <div className="px-4 py-5 sm:p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-lg font-medium text-gray-900">Study Blocks</h2>
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900">Study Blocks</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Auto-refreshes every 30 seconds to show reminder status
+                  </p>
+                </div>
                 <button
                   onClick={() => setShowCreateForm(!showCreateForm)}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
