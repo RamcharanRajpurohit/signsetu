@@ -1,4 +1,3 @@
-Here’s an updated **README.md** section focusing on the **email reminder feature using cron jobs** for your Quiet Hours Scheduler:
 
 ---
 
